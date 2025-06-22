@@ -1,11 +1,24 @@
-import React, { Suspense, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import React, { Suspense, useRef, useState, useEffect } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { OrbitControls, useGLTF } from "@react-three/drei";
+import * as THREE from "three";
+import { gsap } from "gsap";
 import "./Home3D.css";
-// Simple 3D House Component
+
+// Simple 3D House Component with GLB loading and GSAP animations
 function SimpleHouse({ selectedCategory, onCategoryChange }) {
   const houseRef = useRef();
-  const [isRotating, setIsRotating] = useState(false);
+  const { scene } = useGLTF("model/GP.glb");
+  const { camera, controls } = useThree();
+  const [isRotating, setIsRotating] = useState(true);
+
+  // Store original positions and rotations for reset
+  const originalCameraPosition = useRef([12, 8, 8]);
+  const originalCameraTarget = useRef([0, 5, 0]);
+
+  // Animation refs for GSAP tweens
+  const cameraAnimationRef = useRef(null);
+  const houseAnimationRef = useRef(null);
 
   useFrame((state, delta) => {
     if (houseRef.current && isRotating) {
@@ -13,59 +26,221 @@ function SimpleHouse({ selectedCategory, onCategoryChange }) {
     }
   });
 
-  // Function to handle scene changes based on selected category
+  // Function to find mesh by name in the scene
+  const findMeshesByPrefix = (scene, prefix) => {
+    const meshes = [];
+    scene.traverse((child) => {
+      if (
+        child.isMesh &&
+        child.name.toLowerCase().startsWith(prefix.toLowerCase())
+      ) {
+        meshes.push(child);
+      }
+    });
+    return meshes;
+  };
+
+  useEffect(() => {
+    scene.traverse((child) => {
+      if (child.isMesh) {
+        console.log("Mesh Name:", child.name);
+      }
+    });
+  }, [scene]);
+
+  // Function to reset all walls to visible
+  const wallPrefixes = ["rightWall", "leftWall", "backWall", "frontWall"];
+
+  const resetWallVisibility = () => {
+    wallPrefixes.forEach((prefix) => {
+      const walls = findMeshesByPrefix(scene, prefix);
+      walls.forEach((wall) => {
+        wall.visible = true;
+      });
+    });
+  };
+
+  // GSAP animation function for smooth camera transitions
+  const animateCamera = (
+    targetPosition,
+    targetLookAt,
+    houseRotation = 0,
+    duration = 1.5
+  ) => {
+    // Kill any existing animations
+    if (cameraAnimationRef.current) {
+      cameraAnimationRef.current.kill();
+    }
+    if (houseAnimationRef.current) {
+      houseAnimationRef.current.kill();
+    }
+
+    // Stop rotation during animation
+    setIsRotating(false);
+
+    // Create timeline for coordinated animations
+    const tl = gsap.timeline({
+      ease: "power2.inOut",
+      onComplete: () => {
+        if (controls) {
+          controls.update();
+        }
+      },
+    });
+
+    // Animate camera position
+    tl.to(
+      camera.position,
+      {
+        x: targetPosition[0],
+        y: targetPosition[1],
+        z: targetPosition[2],
+        duration: duration,
+        ease: "power2.inOut",
+      },
+      0
+    );
+
+    // Animate camera target (controls target)
+    if (controls) {
+      tl.to(
+        controls.target,
+        {
+          x: targetLookAt[0],
+          y: targetLookAt[1],
+          z: targetLookAt[2],
+          duration: duration,
+          ease: "power2.inOut",
+          onUpdate: () => {
+            controls.update();
+          },
+        },
+        0
+      );
+    }
+
+    // Animate house rotation
+    if (houseRef.current) {
+      tl.to(
+        houseRef.current.rotation,
+        {
+          y: houseRotation,
+          duration: duration,
+          ease: "power2.inOut",
+        },
+        0
+      );
+    }
+
+    cameraAnimationRef.current = tl;
+  };
+
+  // Function to handle camera positioning and model rotation with GSAP
   const handleSceneChange = (category) => {
     console.log(`Changing scene for: ${category}`);
-    // This is where you'll implement your scene modifications
-    // Example: make walls invisible, highlight specific areas, etc.
+
+    // Reset all walls to visible first
+    resetWallVisibility();
+
     switch (category) {
       case "kitchen":
-        // Handle kitchen view
+        // Hide right wall for kitchen view
+        const rightWalls = findMeshesByPrefix(scene, "rightWall");
+        rightWalls.forEach((wall) => (wall.visible = false));
+
+        animateCamera([5, 3, 5], [2, 1, 0], Math.PI / 4);
         break;
+
       case "living room":
-        // Handle living room view
+        // Hide left wall for living room view
+        const leftWallLiving = findMeshesByPrefix(scene, "leftWall");
+        leftWallLiving.forEach((wall) => (wall.visible = false));
+
+        animateCamera([-5, 3, 5], [-2, 1, 0], -Math.PI / 4);
         break;
+
       case "bedroom":
-        // Handle bedroom view
+        // Hide left wall for bedroom view
+        const leftWallBedroom = findMeshesByPrefix(scene, "leftWall");
+        leftWallBedroom.forEach((wall) => (wall.visible = false));
+
+        animateCamera([-4, 4, 4], [-1, 2, 1], -Math.PI / 6);
         break;
+
       case "bathroom":
-        // Handle bathroom view
+        // Hide left wall for bathroom view
+        const leftWallBathroom = findMeshesByPrefix(scene, "leftWall");
+        leftWallBathroom.forEach((wall) => (wall.visible = false));
+
+        animateCamera([-3, 2, 3], [-1, 1, -1], -Math.PI / 3);
         break;
+
       case "garage":
-        // Handle garage view
+        // No walls to hide, just position camera for garage view
+        animateCamera([6, 2, -4], [3, 0, -2], Math.PI);
         break;
+
       case "roof":
-        // Handle roof view
+        // Position camera from above for roof view
+        animateCamera([0, 15, 0], [0, 0, 0], 0, 2); // Longer duration for dramatic effect
         break;
+
       case "balcony":
-        // Handle balcony view
+        // Position camera for balcony view
+        animateCamera([4, 4, 8], [1, 2, 4], Math.PI / 8);
         break;
+
       case "door":
-        // Handle door view
+        // Position camera for door view
+        animateCamera([0, 2, 8], [0, 1, 0], 0);
         break;
+
       case "garden":
-        // Handle garden view
+        // Position camera for garden view
+        animateCamera([8, 4, 8], [4, 0, 4], Math.PI / 6);
         break;
+
       default:
-        // Default view
+        // Default view - reset to original position
+        animateCamera(
+          originalCameraPosition.current,
+          originalCameraTarget.current,
+          0
+        );
         break;
     }
   };
 
   // React to category changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (selectedCategory) {
       handleSceneChange(selectedCategory);
+    } else {
+      // Reset to default view when no category is selected
+      resetWallVisibility();
+      animateCamera(
+        originalCameraPosition.current,
+        originalCameraTarget.current,
+        0
+      );
     }
   }, [selectedCategory]);
 
+  // Cleanup animations on unmount
+  useEffect(() => {
+    return () => {
+      if (cameraAnimationRef.current) {
+        cameraAnimationRef.current.kill();
+      }
+      if (houseAnimationRef.current) {
+        houseAnimationRef.current.kill();
+      }
+    };
+  }, []);
+
   return (
     <group ref={houseRef} position={[0, 0, 0]}>
-      {/* This is a placeholder - replace with your GLB model */}
-      <mesh position={[1.2, 0.8, 1.51]}>
-        <boxGeometry args={[0.8, 0.8, 0.1]} />
-        <meshStandardMaterial color="#87CEEB" />
-      </mesh>
+      <primitive object={scene} />
     </group>
   );
 }
@@ -160,7 +335,7 @@ function SensorDropdown({ selectedCategory, onSensorSelect }) {
   if (!selectedCategory) {
     return (
       <div className="sensor-dropdown disabled">
-        <span>Select a room to view sensors</span>
+        <span>Select Category to view sensors</span>
       </div>
     );
   }
@@ -191,7 +366,7 @@ function SensorDropdown({ selectedCategory, onSensorSelect }) {
 }
 
 const Home3D = () => {
-  const [controlsEnabled, setControlsEnabled] = useState(false);
+  const [controlsEnabled, setControlsEnabled] = useState(true);
   const [autoRotate, setAutoRotate] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [sensorData, setSensorData] = useState(null);
@@ -210,6 +385,7 @@ const Home3D = () => {
 
   const handleCategorySelect = (categoryId) => {
     setSelectedCategory(categoryId);
+    setControlsEnabled(true);
     setSensorData(null); // Reset sensor data when category changes
   };
 
@@ -219,13 +395,6 @@ const Home3D = () => {
 
   return (
     <div className="home3d-container">
-      {/* <div className="home3d-header">
-        <h1 className="home3d-title">3D Home Visualization</h1>
-        <p className="home3d-subtitle">
-          Interactive 3D view of your smart home
-        </p>
-      </div> */}
-
       <div className="canvas-container">
         <div className="home3d-controls">
           <button
@@ -272,7 +441,7 @@ const Home3D = () => {
         </div>
         <Suspense fallback={<LoadingFallback />}>
           <Canvas
-            camera={{ position: [8, 6, 8], fov: 60 }}
+            camera={{ position: [25, 6, 23], fov: 60 }}
             shadows
             style={{
               background: "linear-gradient(135deg, #0d1017 0%, #1a1f2e 100%)",
@@ -281,10 +450,10 @@ const Home3D = () => {
           >
             <OrbitControls
               enabled={controlsEnabled}
-              enablePan={true}
+              enablePan={false}
               enableZoom={true}
               enableRotate={true}
-              autoRotate={autoRotate}
+              autoRotate={autoRotate && !selectedCategory} // Disable auto-rotate when category is selected
               autoRotateSpeed={1}
               maxPolarAngle={Math.PI / 2}
               minDistance={5}
@@ -292,35 +461,21 @@ const Home3D = () => {
             />
 
             {/* Lighting */}
-            <ambientLight intensity={0.4} />
-            <directionalLight
-              position={[10, 10, 5]}
-              intensity={1}
-              castShadow
-              shadow-mapSize={[1024, 1024]}
-            />
-            <pointLight position={[-10, -10, -10]} intensity={0.3} />
+            <ambientLight intensity={4} />
 
             {/* 3D House */}
             <SimpleHouse
               selectedCategory={selectedCategory}
               onCategoryChange={setSelectedCategory}
             />
-
-            {/* Ground */}
-            <mesh
-              position={[0, -0.5, 0]}
-              rotation={[-Math.PI / 2, 0, 0]}
-              receiveShadow
-            >
-              <planeGeometry args={[20, 20]} />
-              <meshStandardMaterial color="#2d5a27" />
-            </mesh>
           </Canvas>
         </Suspense>
       </div>
     </div>
   );
 };
+
+// Preload the GLB model
+useGLTF.preload("model/GP.glb");
 
 export default Home3D;
