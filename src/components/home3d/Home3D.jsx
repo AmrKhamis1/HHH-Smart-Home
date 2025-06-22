@@ -1,7 +1,10 @@
 import React, { Suspense, useRef, useState, useEffect, useMemo } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
+useGLTF.preload("model/GP.glb");
+
 import * as THREE from "three";
+import { Perf } from "r3f-perf";
 import { gsap } from "gsap";
 import "./Home3D.css";
 import Effects from "./Effects";
@@ -66,6 +69,7 @@ function SimpleHouse({ selectedCategory, onCategoryChange, controlsRef }) {
   useEffect(() => {
     scene.traverse((child) => {
       if (child.isMesh) {
+        child.frustumCulled = false;
       }
     });
   }, [scene]);
@@ -108,6 +112,9 @@ function SimpleHouse({ selectedCategory, onCategoryChange, controlsRef }) {
     setIsRotating(false);
 
     // Create timeline for coordinated animations
+    if (!controlsRef.current) {
+      return;
+    }
     const tl = gsap.timeline({
       ease: "power2.inOut",
       onComplete: () => {
@@ -667,7 +674,6 @@ const Home3D = () => {
               camera={{ position: [25, 6, 23], fov: 60 }}
               shadows
               style={{
-                background: "linear-gradient(135deg, #0d1017 0%, #1a1f2e 100%)",
                 pointerEvents: controlsEnabled ? "auto" : "none",
               }}
               gl={{
@@ -677,6 +683,8 @@ const Home3D = () => {
                 failIfMajorPerformanceCaveat: false,
               }}
             >
+              <color attach="background" args={["#1a1f2e"]} />
+
               <Effects></Effects>
               <OrbitControls
                 ref={controlsRef}
@@ -693,6 +701,7 @@ const Home3D = () => {
 
               {/* Lighting */}
               <ambientLight intensity={4} />
+              <Perf position="top-left" style={{ zIndex: "1000000000" }} />
 
               {/* 3D House */}
               <SimpleHouse
