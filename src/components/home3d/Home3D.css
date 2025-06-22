@@ -364,7 +364,27 @@
   justify-content: center;
   transform: translateY(-2px);
 }
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
 
+.loading-overlay.fade-out {
+  animation: fadeOut 1s ease-out forwards;
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
 .category-btn:hover {
   color: var(--text-primary);
   border-color: var(--primary-blue);

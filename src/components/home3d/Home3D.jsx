@@ -19,6 +19,51 @@ import { sensorAPI } from "../../services/api";
 // Preload the model outside of components to prevent multiple loads
 useGLTF.preload("model/GP.glb");
 
+const LoadingOverlay = ({ isVisible }) => {
+  return (
+    <div
+      className={`loading-overlay ${isVisible ? "visible" : "fade-out"}`}
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100vw",
+        height: "100vh",
+        backgroundColor: "#0d1017",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 9999,
+        transition: "opacity 1s ease-out",
+        opacity: isVisible ? 1 : 0,
+        pointerEvents: isVisible ? "auto" : "none",
+      }}
+    >
+      <div
+        className="loading-spinner"
+        style={{
+          width: "50px",
+          height: "50px",
+          border: "3px solid #333",
+          borderTop: "3px solid #fff",
+          borderRadius: "50%",
+          animation: "spin 1s linear infinite",
+          marginBottom: "20px",
+        }}
+      ></div>
+      <p
+        style={{
+          color: "#fff",
+          fontSize: "18px",
+          fontFamily: "Arial, sans-serif",
+        }}
+      >
+        Loading Smart Home Experience...
+      </p>
+    </div>
+  );
+};
 // Simple 3D House Component with GLB loading and GSAP animations
 function SimpleHouse({
   selectedCategory,
@@ -539,7 +584,7 @@ const Home3D = () => {
   const [error, setError] = useState(null);
   const [modelLoaded, setModelLoaded] = useState(false);
   const [canvasKey, setCanvasKey] = useState(0); // Key to force canvas remount if needed
-
+  const [showLoadingOverlay, setShowLoadingOverlay] = useState(true);
   const controlsRef = useRef();
   const intervalRef = useRef(null);
   const categoryIntervalRef = useRef(null);
@@ -620,9 +665,14 @@ const Home3D = () => {
   const handleModelLoaded = useCallback(() => {
     setModelLoaded(true);
     setIsLoading(false);
+
+    // Wait 3 seconds after model is loaded, then fade out
+    setTimeout(() => {
+      setShowLoadingOverlay(false);
+    }, 3000);
+
     console.log("Model loaded successfully");
   }, []);
-
   // Setup polling for sensor data - Optimized
   useEffect(() => {
     fetchSensorData();
@@ -1363,6 +1413,7 @@ const Home3D = () => {
           </Canvas>
         </Suspense>
       </div>
+      <LoadingOverlay isVisible={showLoadingOverlay} />
     </div>
   );
 };
