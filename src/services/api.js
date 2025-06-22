@@ -125,14 +125,22 @@ export const sensorAPI = {
   // Get bedroom status
   getBedroomStatus: async () => {
     try {
-      const response = await api.post("/cat/bed/status");
+      const response = await api.post("/cat/bedroom/status");
       return response.data;
     } catch (error) {
       console.error("Error fetching bedroom status:", error);
       throw error;
     }
   },
-
+  getCorridorStatus: async () => {
+    try {
+      const response = await api.post("/cat/corridor/status");
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching bedroom status:", error);
+      throw error;
+    }
+  },
   // Generic function to get status for any category
   getCategoryStatus: async (category) => {
     const categoryMap = {
@@ -142,7 +150,7 @@ export const sensorAPI = {
       garage: "garage",
       garden: "garden",
       bedroom: "bedroom",
-      bed: "bedroom",
+      door: "corridor",
     };
 
     const apiCategory = categoryMap[category.toLowerCase()];
@@ -162,7 +170,7 @@ export const sensorAPI = {
   // Get all sensor data at once
   getAllSensorData: async () => {
     try {
-      const [living, kitchen, roof, garage, garden, bedroom] =
+      const [living, kitchen, roof, garage, garden, bedroom, corridor] =
         await Promise.allSettled([
           sensorAPI.getLivingRoomStatus(),
           sensorAPI.getKitchenStatus(),
@@ -170,6 +178,7 @@ export const sensorAPI = {
           sensorAPI.getGarageStatus(),
           sensorAPI.getGardenStatus(),
           sensorAPI.getBedroomStatus(),
+          sensorAPI.getCorridorStatus(),
         ]);
 
       return {
@@ -179,6 +188,7 @@ export const sensorAPI = {
         garage: garage.status === "fulfilled" ? garage.value : null,
         garden: garden.status === "fulfilled" ? garden.value : null,
         bedroom: bedroom.status === "fulfilled" ? bedroom.value : null,
+        door: corridor.status === "fulfilled" ? corridor.value : null, // Add this line
       };
     } catch (error) {
       console.error("Error fetching all sensor data:", error);
