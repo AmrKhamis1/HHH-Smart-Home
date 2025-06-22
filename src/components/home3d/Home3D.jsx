@@ -865,12 +865,6 @@ const Home3D = () => {
                   {/* Car Presence */}
                   {sensorData["garage"].motion && (
                     <>
-                      <mesh position={[3.5, 0.3, 3]} scale={[0.2, 0.08, 0.12]}>
-                        <boxGeometry args={[1, 1, 1]}></boxGeometry>
-                        <meshBasicMaterial
-                          color={new THREE.Color(0, 0, 8)}
-                        ></meshBasicMaterial>
-                      </mesh>
                       <RoomTextLabel
                         position={[3.8, 1.6, 4]}
                         rotation={[0, Math.PI * 2, 0]}
@@ -1064,7 +1058,7 @@ const Home3D = () => {
                         <meshBasicMaterial
                           color={
                             sensorData["living room"].temperature > 30
-                              ? new THREE.Color(10, 2, 0) // Red for hot
+                              ? new THREE.Color(10, 0, 0) // Red for hot
                               : sensorData["living room"].temperature < 15
                               ? new THREE.Color(0, 4, 10) // Blue for cold
                               : new THREE.Color(0, 8, 0) // Green for optimal
@@ -1073,14 +1067,14 @@ const Home3D = () => {
                       </mesh>
                       <RoomTextLabel
                         position={[-1.5, 1.4, 3.5]}
-                        rotation={[0, -Math.PI / 4, 0]}
+                        rotation={[0, -Math.PI / 2, 0]}
                         label="Temp"
                         value={`${sensorData["living room"].temperature.toFixed(
                           1
                         )}°C`}
                         color={
                           sensorData["living room"].temperature > 30
-                            ? new THREE.Color(10, 2, 0)
+                            ? new THREE.Color(10, 0, 0)
                             : sensorData["living room"].temperature < 15
                             ? new THREE.Color(0, 4, 10)
                             : new THREE.Color(0, 8, 0)

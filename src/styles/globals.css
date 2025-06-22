@@ -135,12 +135,6 @@ body {
 }
 
 /* Alert Styles */
-.alert {
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  font-weight: 500;
-}
 
 .alert-error {
   background-color: rgba(239, 68, 68, 0.1);

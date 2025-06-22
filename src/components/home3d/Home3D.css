@@ -165,6 +165,7 @@
   align-items: center;
   justify-content: center;
   font-size: 12px;
+
   font-weight: bold;
   animation: pulse 2s infinite;
 }
@@ -361,6 +362,7 @@
   height: 50px;
   width: 130px;
   justify-content: center;
+  transform: translateY(-2px);
 }
 
 .category-btn:hover {
@@ -371,7 +373,7 @@
     rgba(40, 121, 254, 0.1) 0%,
     rgba(26, 31, 46, 0.9) 100%
   );
-  transform: translateY(-2px);
+  transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(40, 121, 254, 0.1);
 }
 
@@ -384,7 +386,7 @@
   color: var(--text-primary);
   border-color: var(--primary-blue);
   box-shadow: 0 8px 32px var(--shadow-blue);
-  transform: translateY(-2px);
+  transform: translateY(-4px);
 }
 
 .category-icon {
