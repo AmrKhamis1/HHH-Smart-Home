@@ -474,11 +474,12 @@ const Home3D = () => {
         roof: "roof",
         garage: "garage",
         garden: "garden",
-        bedroom: "bedroom",
+        bedroom: "bed", // Note: API uses 'bed' but display uses 'bedroom'
       };
 
       if (categoryMap[category]) {
-        const data = await sensorAPI.getCategoryStatus(category);
+        const apiCategory = categoryMap[category];
+        const data = await sensorAPI.getCategoryStatus(apiCategory);
 
         setSensorData((prev) => {
           // Only update if the category data has changed
@@ -545,6 +546,7 @@ const Home3D = () => {
         data.alert === true ||
         data.fire === true ||
         data.emergencyOn === true ||
+        data.rainDetected === true ||
         (data.mq2 !== null && data.mq2 > 300) ||
         (data.mq5 !== null && data.mq5 > 300)
       );
@@ -632,10 +634,11 @@ const Home3D = () => {
               controlsRef={controlsRef}
             />
 
+            {/* Kitchen Sensors */}
             {sensorData["kitchen"] && (
               <>
                 <RoomTextLabel
-                  position={[3, 1, -3]} // Kitchen position
+                  position={[3, 1, -3]}
                   rotation={[0, Math.PI / 2, 0]}
                   label="Gas"
                   value={sensorData["kitchen"].mq2 > 300 ? "HIGH" : "Normal"}
@@ -657,16 +660,526 @@ const Home3D = () => {
                 </mesh>
 
                 <RoomTextLabel
-                  position={[4.7, 1.5, -4.7]} // Kitchen position
+                  position={[4.7, 1.5, -4.7]}
                   rotation={[0, 0, 0]}
                   scale={[0.5, 0.5, 0.5]}
                   label="Fire"
-                  value={sensorData["kitchen"] > 300 ? "Fire" : "No Fire"}
+                  value={
+                    sensorData["kitchen"].fire == true ? "Fire" : "No Fire"
+                  }
                   color={
-                    sensorData["kitchen"].mq2 > 300
+                    sensorData["kitchen"].fire == true
                       ? new THREE.Color(10, 0, 0)
                       : new THREE.Color(0, 10, 0)
                   }
+                />
+              </>
+            )}
+
+            {/* Living Room Sensors */}
+            {sensorData["living room"] && (
+              <>
+                {/* Motion Sensor */}
+                <mesh position={[-2, 1.4, 2]} scale={[0.08, 0.08, 0.08]}>
+                  <sphereGeometry args={[1, 16, 16]}></sphereGeometry>
+                  <meshBasicMaterial
+                    color={
+                      sensorData["living room"].motion
+                        ? new THREE.Color(10, 5, 0) // Orange for motion detected
+                        : new THREE.Color(0, 10, 0)
+                    }
+                  ></meshBasicMaterial>
+                </mesh>
+                <RoomTextLabel
+                  position={[-2, 1, 2]}
+                  rotation={[0, -Math.PI / 2, 0]}
+                  label="Motion"
+                  value={
+                    sensorData["living room"].motion ? "Detected" : "Clear"
+                  }
+                  color={
+                    sensorData["living room"].motion
+                      ? new THREE.Color(10, 5, 0)
+                      : new THREE.Color(0, 10, 0)
+                  }
+                />
+
+                {/* TV Status */}
+                <mesh position={[-1.85, 2.0, -1.3]} scale={[0.2, 0.2, 0.2]}>
+                  <boxGeometry args={[1, 0.6, 0.1]}></boxGeometry>
+                  <meshBasicMaterial
+                    color={
+                      sensorData["living room"].tvOn
+                        ? new THREE.Color(0, 5, 10) // Blue for TV on
+                        : new THREE.Color(2, 2, 2) // Gray for TV off
+                    }
+                  ></meshBasicMaterial>
+                </mesh>
+                <RoomTextLabel
+                  position={[-1.85, 2.3, -1.3]}
+                  rotation={[0, 0, 0]}
+                  label="TV"
+                  value={sensorData["living room"].tvOn ? "ON" : "OFF"}
+                  color={
+                    sensorData["living room"].tvOn
+                      ? new THREE.Color(0, 5, 10)
+                      : new THREE.Color(5, 5, 5)
+                  }
+                />
+
+                {/* Emergency Status */}
+                {sensorData["living room"].emergencyOn && (
+                  <>
+                    <mesh position={[-2, 3.5, 1]} scale={[0.1, 0.1, 0.1]}>
+                      <sphereGeometry args={[1, 16, 16]}></sphereGeometry>
+                      <meshBasicMaterial
+                        color={new THREE.Color(10, 0, 0)}
+                      ></meshBasicMaterial>
+                    </mesh>
+                    <RoomTextLabel
+                      position={[-2, 3, 1]}
+                      rotation={[0, -Math.PI / 2, 0]}
+                      label="EMERGENCY"
+                      value="ACTIVE"
+                      color={new THREE.Color(10, 0, 0)}
+                    />
+                  </>
+                )}
+
+                {/* Light Status */}
+                <mesh position={[-2, 4, 1]} scale={[0.2, 0.2, 0.2]}>
+                  <sphereGeometry args={[1, 16, 16]}></sphereGeometry>
+                  <meshBasicMaterial
+                    color={
+                      sensorData["living room"].lightOn
+                        ? new THREE.Color(10, 10, 5) // Bright yellow for light on
+                        : new THREE.Color(2, 2, 2) // Dark gray for light off
+                    }
+                  ></meshBasicMaterial>
+                </mesh>
+              </>
+            )}
+
+            {/* Bedroom Sensors */}
+            {sensorData["bedroom"] && (
+              <>
+                {/* Light Status */}
+                <mesh position={[-2, 5, -3]} scale={[0.02, 0.2, 0.2]}>
+                  <sphereGeometry args={[1, 16, 16]}></sphereGeometry>
+                  <meshBasicMaterial
+                    color={
+                      sensorData["bedroom"].buzzerActive
+                        ? new THREE.Color(20, 20, 5)
+                        : new THREE.Color(2, 2, 2)
+                    }
+                  ></meshBasicMaterial>
+                </mesh>
+                <RoomTextLabel
+                  position={[-2, 4.3, -3]}
+                  rotation={[0, -Math.PI / 2, 0]}
+                  label="Light"
+                  value={sensorData["bedroom"].buzzerActive ? "ON" : "OFF"}
+                  color={
+                    sensorData["bedroom"].buzzerActive
+                      ? new THREE.Color(20, 20, 5)
+                      : new THREE.Color(1, 1, 1)
+                  }
+                />
+              </>
+            )}
+
+            {/* Garage Sensors */}
+            {sensorData["garage"] && (
+              <>
+                {/* Garage Door Status */}
+                <mesh position={[3.8, 1, 4]} scale={[0.12, 0.12, 0.03]}>
+                  <boxGeometry args={[1, 1, 1]}></boxGeometry>
+                  <meshBasicMaterial
+                    color={
+                      sensorData["garage"].alert
+                        ? new THREE.Color(10, 0, 0)
+                        : new THREE.Color(0, 10, 0)
+                    }
+                  ></meshBasicMaterial>
+                </mesh>
+                <RoomTextLabel
+                  position={[3.8, 0.5, 4]}
+                  rotation={[0, Math.PI * 2, 0]}
+                  label="Garage"
+                  value={sensorData["garage"].doorOpen ? "OPEN" : "CLOSED"}
+                  color={
+                    sensorData["garage"].doorOpen
+                      ? new THREE.Color(0, 10, 0)
+                      : new THREE.Color(10, 0, 0)
+                  }
+                />
+
+                {/* Car Presence */}
+                {sensorData["garage"].motion && (
+                  <>
+                    <mesh position={[3.5, 0.3, 3]} scale={[0.2, 0.08, 0.12]}>
+                      <boxGeometry args={[1, 1, 1]}></boxGeometry>
+                      <meshBasicMaterial
+                        color={new THREE.Color(0, 0, 8)}
+                      ></meshBasicMaterial>
+                    </mesh>
+                    <RoomTextLabel
+                      position={[3.8, 1.6, 4]}
+                      rotation={[0, Math.PI * 2, 0]}
+                      label="Car"
+                      value="Present"
+                      color={new THREE.Color(0, 0, 18)}
+                    />
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Garden Sensors */}
+            {sensorData["garden"] && (
+              <>
+                {/* Soil Moisture Indicator */}
+                <mesh position={[6, 0.2, 8]} scale={[0.15, 0.05, 0.15]}>
+                  <cylinderGeometry args={[1, 1, 1, 8]}></cylinderGeometry>
+                  <meshBasicMaterial
+                    color={
+                      sensorData["garden"].soilMoisture !== null
+                        ? sensorData["garden"].soilMoisture < 30
+                          ? new THREE.Color(8, 4, 0) // Brown for dry soil
+                          : sensorData["garden"].soilMoisture > 70
+                          ? new THREE.Color(0, 4, 8) // Blue for wet soil
+                          : new THREE.Color(0, 8, 2) // Green for optimal moisture
+                        : new THREE.Color(4, 2, 0) // Default brown
+                    }
+                  ></meshBasicMaterial>
+                </mesh>
+                <RoomTextLabel
+                  position={[6, 0.8, 8]}
+                  rotation={[0, 0, 0]}
+                  label="Soil"
+                  value={
+                    sensorData["garden"].soilMoisture !== null
+                      ? `${sensorData["garden"].soilMoisture.toFixed(1)}%`
+                      : "N/A"
+                  }
+                  color={
+                    sensorData["garden"].soilMoisture !== null
+                      ? sensorData["garden"].soilMoisture < 30
+                        ? new THREE.Color(8, 4, 0)
+                        : sensorData["garden"].soilMoisture > 70
+                        ? new THREE.Color(0, 4, 8)
+                        : new THREE.Color(0, 8, 2)
+                      : new THREE.Color(4, 2, 0)
+                  }
+                />
+
+                {/* Irrigation System */}
+                <mesh position={[8, 0.5, 6]} scale={[0.08, 0.08, 0.08]}>
+                  <cylinderGeometry args={[1, 0.5, 2, 8]}></cylinderGeometry>
+                  <meshBasicMaterial
+                    color={
+                      sensorData["garden"].irrigationOn
+                        ? new THREE.Color(0, 8, 12) // Bright cyan for irrigation on
+                        : new THREE.Color(2, 2, 2) // Gray for irrigation off
+                    }
+                  ></meshBasicMaterial>
+                </mesh>
+                <RoomTextLabel
+                  position={[8, 1.2, 6]}
+                  rotation={[0, -Math.PI / 4, 0]}
+                  label="Irrigation"
+                  value={sensorData["garden"].irrigationOn ? "ON" : "OFF"}
+                  color={
+                    sensorData["garden"].irrigationOn
+                      ? new THREE.Color(0, 8, 12)
+                      : new THREE.Color(5, 5, 5)
+                  }
+                />
+
+                {/* Water droplets effect when irrigation is on */}
+                {sensorData["garden"].irrigationOn && (
+                  <>
+                    {[...Array(5)].map((_, i) => (
+                      <mesh
+                        key={i}
+                        position={[
+                          8 + (Math.random() - 0.5) * 2,
+                          0.3 + Math.random() * 0.5,
+                          6 + (Math.random() - 0.5) * 2,
+                        ]}
+                        scale={[0.02, 0.02, 0.02]}
+                      >
+                        <sphereGeometry args={[1, 8, 8]}></sphereGeometry>
+                        <meshBasicMaterial
+                          color={new THREE.Color(0, 6, 10)}
+                          transparent={true}
+                          opacity={0.7}
+                        ></meshBasicMaterial>
+                      </mesh>
+                    ))}
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Roof Sensors */}
+            {sensorData["roof"] && (
+              <>
+                {/* Rain Detection Sensor */}
+                <mesh position={[0, 7.5, 0]} scale={[0.1, 0.1, 0.1]}>
+                  <cylinderGeometry args={[1, 0.8, 0.5, 8]}></cylinderGeometry>
+                  <meshBasicMaterial
+                    color={
+                      sensorData["roof"].rainDetected
+                        ? new THREE.Color(0, 8, 12) // Bright blue for rain detected
+                        : new THREE.Color(6, 6, 6) // Light gray for no rain
+                    }
+                  ></meshBasicMaterial>
+                </mesh>
+                <RoomTextLabel
+                  position={[0, 6.8, 0]}
+                  rotation={[0, 0, 0]}
+                  label="Rain"
+                  value={sensorData["roof"].rainDetected ? "DETECTED" : "Clear"}
+                  color={
+                    sensorData["roof"].rainDetected
+                      ? new THREE.Color(0, 8, 12)
+                      : new THREE.Color(6, 6, 6)
+                  }
+                />
+
+                {/* Alert Status for Roof */}
+                {sensorData["roof"].alert && (
+                  <>
+                    <mesh position={[2, 7.8, 2]} scale={[0.08, 0.08, 0.08]}>
+                      <sphereGeometry args={[1, 16, 16]}></sphereGeometry>
+                      <meshBasicMaterial
+                        color={new THREE.Color(10, 0, 0)}
+                      ></meshBasicMaterial>
+                    </mesh>
+                    <RoomTextLabel
+                      position={[2, 7.2, 2]}
+                      rotation={[0, 0, 0]}
+                      label="ROOF ALERT"
+                      value="ACTIVE"
+                      color={new THREE.Color(10, 0, 0)}
+                    />
+                  </>
+                )}
+
+                {/* Rain particles effect when rain is detected */}
+                {sensorData["roof"].rainDetected && (
+                  <>
+                    {[...Array(12)].map((_, i) => (
+                      <mesh
+                        key={i}
+                        position={[
+                          (Math.random() - 0.5) * 10,
+                          8 + Math.random() * 2,
+                          (Math.random() - 0.5) * 10,
+                        ]}
+                        scale={[0.01, 0.05, 0.01]}
+                      >
+                        <cylinderGeometry
+                          args={[1, 0.5, 1, 4]}
+                        ></cylinderGeometry>
+                        <meshBasicMaterial
+                          color={new THREE.Color(0, 4, 8)}
+                          transparent={true}
+                          opacity={0.6}
+                        ></meshBasicMaterial>
+                      </mesh>
+                    ))}
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Living Room Sensors  */}
+            {sensorData["living room"] && (
+              <>
+                {/* Temperature Display */}
+                {sensorData["living room"].temperature !== null && (
+                  <>
+                    <mesh position={[-1.5, 2, 3.5]} scale={[0.06, 0.06, 0.06]}>
+                      <cylinderGeometry args={[1, 1, 2, 8]}></cylinderGeometry>
+                      <meshBasicMaterial
+                        color={
+                          sensorData["living room"].temperature > 30
+                            ? new THREE.Color(10, 2, 0) // Red for hot
+                            : sensorData["living room"].temperature < 15
+                            ? new THREE.Color(0, 4, 10) // Blue for cold
+                            : new THREE.Color(0, 8, 0) // Green for optimal
+                        }
+                      ></meshBasicMaterial>
+                    </mesh>
+                    <RoomTextLabel
+                      position={[-1.5, 1.4, 3.5]}
+                      rotation={[0, -Math.PI / 4, 0]}
+                      label="Temp"
+                      value={`${sensorData["living room"].temperature.toFixed(
+                        1
+                      )}°C`}
+                      color={
+                        sensorData["living room"].temperature > 30
+                          ? new THREE.Color(10, 2, 0)
+                          : sensorData["living room"].temperature < 15
+                          ? new THREE.Color(0, 4, 10)
+                          : new THREE.Color(0, 8, 0)
+                      }
+                    />
+                  </>
+                )}
+
+                {/* Fan Status */}
+
+                {/* Fan blades that rotate when on */}
+                {sensorData["living room"].fanOn && (
+                  <>
+                    <group
+                      position={[2, 1.5, 2]}
+                      rotation={[0, 0, -Math.PI / 2]}
+                    >
+                      <mesh scale={[0.08, 0.02, 0.08]}>
+                        <cylinderGeometry
+                          args={[1, 1, 1, 8]}
+                        ></cylinderGeometry>
+                        <meshBasicMaterial
+                          color={
+                            sensorData["living room"].fanOn
+                              ? new THREE.Color(0, 8, 12) // Cyan for fan on
+                              : new THREE.Color(3, 3, 3) // Gray for fan off
+                          }
+                        ></meshBasicMaterial>
+                      </mesh>
+                      {[0, 1, 2].map((i) => (
+                        <mesh
+                          key={i}
+                          rotation={[0, (i * Math.PI * 2) / 3, 0]}
+                          scale={[0.12, 0.005, 0.02]}
+                        >
+                          <boxGeometry args={[4, 1, 1]}></boxGeometry>
+                          <meshBasicMaterial
+                            color={new THREE.Color(8, 8, 8)}
+                          ></meshBasicMaterial>
+                        </mesh>
+                      ))}
+                    </group>
+                  </>
+                )}
+
+                <RoomTextLabel
+                  position={[2, 2, 1]}
+                  rotation={[0, -Math.PI / 2, 0]}
+                  label="AC"
+                  value={sensorData["living room"].fanOn ? "ON" : "OFF"}
+                  color={
+                    sensorData["living room"].fanOn
+                      ? new THREE.Color(0, 8, 12)
+                      : new THREE.Color(5, 5, 5)
+                  }
+                />
+
+                {/* Curtain Status */}
+                <mesh position={[-3.5, 2, 1]} scale={[0.02, 0.2, 0.15]}>
+                  <boxGeometry args={[1, 1, 1]}></boxGeometry>
+                  <meshBasicMaterial
+                    color={
+                      sensorData["living room"].curtainOpen
+                        ? new THREE.Color(10, 8, 0) // Yellow for curtains open
+                        : new THREE.Color(4, 2, 0) // Dark brown for curtains closed
+                    }
+                  ></meshBasicMaterial>
+                </mesh>
+                <RoomTextLabel
+                  position={[-3.5, 1.5, 1]}
+                  rotation={[0, -Math.PI / 2, 0]}
+                  label="Curtains"
+                  value={
+                    sensorData["living room"].curtainOpen ? "OPEN" : "CLOSED"
+                  }
+                  color={
+                    sensorData["living room"].curtainOpen
+                      ? new THREE.Color(10, 8, 0)
+                      : new THREE.Color(4, 2, 0)
+                  }
+                />
+              </>
+            )}
+
+            {/* Door Sensors (Main Entrance) */}
+            {selectedCategory === "door" && (
+              <>
+                {/* Door Frame Indicator */}
+                <mesh position={[0, 1.2, 4.8]} scale={[0.15, 0.25, 0.02]}>
+                  <boxGeometry args={[1, 1, 1]}></boxGeometry>
+                  <meshBasicMaterial
+                    color={new THREE.Color(6, 4, 2)} // Wood color
+                  ></meshBasicMaterial>
+                </mesh>
+
+                {/* Door Handle */}
+                <mesh position={[0.05, 1.2, 4.85]} scale={[0.02, 0.02, 0.03]}>
+                  <sphereGeometry args={[1, 8, 8]}></sphereGeometry>
+                  <meshBasicMaterial
+                    color={new THREE.Color(8, 8, 4)} // Brass color
+                  ></meshBasicMaterial>
+                </mesh>
+
+                <RoomTextLabel
+                  position={[0, 0.7, 4.8]}
+                  rotation={[0, Math.PI, 0]}
+                  label="Main Door"
+                  value="Entrance"
+                  color={new THREE.Color(6, 4, 2)}
+                />
+              </>
+            )}
+
+            {/* Balcony Sensors */}
+            {selectedCategory === "balcony" && (
+              <>
+                {/* Balcony Railing */}
+                <mesh position={[4, 4.5, 3]} scale={[0.02, 0.08, 0.2]}>
+                  <boxGeometry args={[1, 1, 1]}></boxGeometry>
+                  <meshBasicMaterial
+                    color={new THREE.Color(6, 6, 6)} // Metal gray
+                  ></meshBasicMaterial>
+                </mesh>
+
+                {/* Plants on Balcony */}
+                <mesh position={[3.8, 4.1, 2.8]} scale={[0.05, 0.08, 0.05]}>
+                  <cylinderGeometry args={[1, 0.8, 1, 8]}></cylinderGeometry>
+                  <meshBasicMaterial
+                    color={new THREE.Color(4, 2, 0)} // Pot color
+                  ></meshBasicMaterial>
+                </mesh>
+                <mesh position={[3.8, 4.3, 2.8]} scale={[0.03, 0.05, 0.03]}>
+                  <sphereGeometry args={[1, 8, 8]}></sphereGeometry>
+                  <meshBasicMaterial
+                    color={new THREE.Color(0, 8, 2)} // Plant green
+                  ></meshBasicMaterial>
+                </mesh>
+
+                <RoomTextLabel
+                  position={[4, 4, 3]}
+                  rotation={[0, -Math.PI / 2, 0]}
+                  label="Balcony"
+                  value="Outdoor Space"
+                  color={new THREE.Color(0, 8, 2)}
+                />
+              </>
+            )}
+
+            {/* Bathroom Sensors (if you plan to add bathroom sensors in the future) */}
+            {selectedCategory === "bathroom" && (
+              <>
+                <RoomTextLabel
+                  position={[2, 2, -4]}
+                  rotation={[0, Math.PI / 2, 0]}
+                  label="Bathroom"
+                  value="No Sensors"
+                  color={new THREE.Color(6, 6, 6)}
                 />
               </>
             )}
@@ -676,8 +1189,5 @@ const Home3D = () => {
     </div>
   );
 };
-
-// Preload the GLB model
-useGLTF.preload("model/GP.glb");
 
 export default Home3D;

@@ -141,8 +141,8 @@ export const sensorAPI = {
       roof: "roof",
       garage: "garage",
       garden: "garden",
-      bedroom: "bed",
-      bed: "bed",
+      bedroom: "bedroom",
+      bed: "bedroom",
     };
 
     const apiCategory = categoryMap[category.toLowerCase()];
