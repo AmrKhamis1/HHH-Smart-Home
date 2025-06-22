@@ -90,6 +90,7 @@ function SimpleHouse({ selectedCategory, onCategoryChange, controlsRef }) {
 
   // GSAP animation function for smooth camera transitions
   const animateCamera = (
+    distance,
     targetPosition,
     targetLookAt,
     houseRotation = 0,
@@ -126,12 +127,15 @@ function SimpleHouse({ selectedCategory, onCategoryChange, controlsRef }) {
         duration: duration,
         ease: "power2.inOut",
       },
+
       0
     );
 
     // Animate camera target (controls target)
     if (controlsRef.current && controlsRef.current.target) {
+      const distanceing = controlsRef.current;
       const target = controlsRef.current.target;
+
       tl.to(
         target,
         {
@@ -141,7 +145,20 @@ function SimpleHouse({ selectedCategory, onCategoryChange, controlsRef }) {
           duration: duration,
           ease: "power2.inOut",
           onUpdate: () => {
-            controlsRef.current?.update(); // Extra safety
+            controlsRef.current?.update();
+          },
+        },
+        0
+      );
+      tl.to(
+        distanceing,
+        {
+          minDistance: distance,
+          duration: duration,
+
+          ease: "power2.inOut",
+          onUpdate: () => {
+            controlsRef.current?.update();
           },
         },
         0
@@ -177,7 +194,7 @@ function SimpleHouse({ selectedCategory, onCategoryChange, controlsRef }) {
         const rightWalls = findMeshesByPrefix(scene, "rightWall");
         rightWalls.forEach((wall) => (wall.visible = false));
 
-        animateCamera([10, 2, -3], [2, 0, -3], 0);
+        animateCamera(5, [10, 2, -3], [2, 0, -3], 0);
         break;
 
       case "living room":
@@ -185,7 +202,7 @@ function SimpleHouse({ selectedCategory, onCategoryChange, controlsRef }) {
         const leftWallLiving = findMeshesByPrefix(scene, "leftWall");
         leftWallLiving.forEach((wall) => (wall.visible = false));
 
-        animateCamera([-8, 6, 2], [-2, 1, 2], 0);
+        animateCamera(5, [-8, 6, 2], [-2, 1, 2], 0);
         break;
 
       case "bedroom":
@@ -193,7 +210,7 @@ function SimpleHouse({ selectedCategory, onCategoryChange, controlsRef }) {
         const leftWallBedroom = findMeshesByPrefix(scene, "leftWall");
         leftWallBedroom.forEach((wall) => (wall.visible = false));
 
-        animateCamera([-5, 4.5, -3], [-2, 4.5, -3], 0);
+        animateCamera(5, [-5, 4.5, -3], [-2, 4.5, -3], 0);
         break;
 
       case "bathroom":
@@ -201,39 +218,40 @@ function SimpleHouse({ selectedCategory, onCategoryChange, controlsRef }) {
         const leftWallBathroom = findMeshesByPrefix(scene, "leftWall");
         leftWallBathroom.forEach((wall) => (wall.visible = false));
 
-        animateCamera([-5, 2, -3], [-2, 1, -3], 0);
+        animateCamera(5, [-5, 2, -3], [-2, 1, -3], 0);
         break;
 
       case "garage":
         // No walls to hide, just position camera for garage view
         const garageDoor = findMeshesByPrefix(scene, "garage");
         garageDoor.forEach((wall) => (wall.visible = false));
-        animateCamera([4, 2, 6], [4, 2, 4], 0);
+        animateCamera(5, [4, 2, 6], [4, 2, 4], 0);
         break;
 
       case "roof":
         // Position camera from above for roof view
-        animateCamera([10, 15, 0], [0, 6, 0], 0); // Longer duration for dramatic effect
+        animateCamera(5, [10, 15, 0], [0, 6, 0], 0); // Longer duration for dramatic effect
         break;
 
       case "balcony":
         // Position camera for balcony view
-        animateCamera([4, 5, 5], [4, 4, 3], 0);
+        animateCamera(5, [4, 5, 5], [4, 4, 3], 0);
         break;
 
       case "door":
         // Position camera for door view
-        animateCamera([1, 1, 5], [1, 1, 4], 0);
+        animateCamera(5, [1, 1, 5], [1, 1, 4], 0);
         break;
 
       case "garden":
         // Position camera for garden view
-        animateCamera([10, 5, 10], [0, 0, 0], 0);
+        animateCamera(5, [10, 5, 10], [0, 0, 0], 0);
         break;
 
       default:
         // Default view - reset to original position
         animateCamera(
+          20,
           originalCameraPosition.current,
           originalCameraTarget.current,
           0
@@ -320,7 +338,8 @@ function SensorDataDisplay({ selectedCategory, sensorData }) {
   // Only update timestamp when the actual data changes (not on every render)
   const previousDataRef = useRef();
   useEffect(() => {
-    if (categoryData && selectedCategory) {
+    console.log(selectedCategory);
+    if (categoryData && selectedCategory && selectedCategory !== "back") {
       // Compare with previous data to see if it actually changed
       const currentDataString = JSON.stringify(categoryData);
       const previousDataString = JSON.stringify(previousDataRef.current);
@@ -353,7 +372,7 @@ function SensorDataDisplay({ selectedCategory, sensorData }) {
     ));
   }, [dataToRender]);
 
-  if (!selectedCategory) {
+  if (!selectedCategory || selectedCategory === "back") {
     return (
       <div className="sensor-data-display">
         <div className="sensor-title">SMART HOME SENSORS</div>
@@ -479,6 +498,7 @@ const Home3D = () => {
     { id: "balcony", name: "Balcony", icon: "🌿" },
     { id: "door", name: "Door", icon: "🚪" },
     { id: "garden", name: "Garden", icon: "🌱" },
+    { id: "back", name: "Back", icon: "⬅" },
   ];
 
   // Function to fetch sensor data from API
@@ -588,7 +608,6 @@ const Home3D = () => {
         data.alert === true ||
         data.fire === true ||
         data.emergencyOn === true ||
-        data.rainDetected === true ||
         (data.mq2 !== null && data.mq2 > 300) ||
         (data.mq5 !== null && data.mq5 > 300)
       );
@@ -665,10 +684,10 @@ const Home3D = () => {
                 enablePan={false}
                 enableZoom={true}
                 enableRotate={true}
-                autoRotate={autoRotate && !selectedCategory}
+                autoRotate={autoRotate && selectedCategory === "back"}
                 autoRotateSpeed={1}
                 maxPolarAngle={Math.PI / 2}
-                minDistance={5}
+                minDistance={20}
                 maxDistance={20}
               />
 
