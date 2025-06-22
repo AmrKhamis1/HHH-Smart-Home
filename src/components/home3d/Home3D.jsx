@@ -1,12 +1,15 @@
-import React, { Suspense, useRef, useState, useEffect } from "react";
+import { Suspense, useRef, useState, useEffect, useMemo } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { gsap } from "gsap";
 import "./Home3D.css";
+import Effects from "./Effects";
+import RoomTextLabel from "./RoomTextLable";
+import { sensorAPI } from "../../services/api";
 
 // Simple 3D House Component with GLB loading and GSAP animations
-function SimpleHouse({ selectedCategory, onCategoryChange }) {
+function SimpleHouse({ selectedCategory, onCategoryChange, controlsRef }) {
   const houseRef = useRef();
   const { scene } = useGLTF("model/GP.glb");
   const { camera, controls } = useThree();
@@ -43,7 +46,6 @@ function SimpleHouse({ selectedCategory, onCategoryChange }) {
   useEffect(() => {
     scene.traverse((child) => {
       if (child.isMesh) {
-        console.log("Mesh Name:", child.name);
       }
     });
   }, [scene]);
@@ -82,8 +84,8 @@ function SimpleHouse({ selectedCategory, onCategoryChange }) {
     const tl = gsap.timeline({
       ease: "power2.inOut",
       onComplete: () => {
-        if (controls) {
-          controls.update();
+        if (controlsRef.current) {
+          controlsRef.current.update();
         }
       },
     });
@@ -102,9 +104,10 @@ function SimpleHouse({ selectedCategory, onCategoryChange }) {
     );
 
     // Animate camera target (controls target)
-    if (controls) {
+    if (controlsRef.current && controlsRef.current.target) {
+      const target = controlsRef.current.target;
       tl.to(
-        controls.target,
+        target,
         {
           x: targetLookAt[0],
           y: targetLookAt[1],
@@ -112,7 +115,7 @@ function SimpleHouse({ selectedCategory, onCategoryChange }) {
           duration: duration,
           ease: "power2.inOut",
           onUpdate: () => {
-            controls.update();
+            controlsRef.current?.update(); // Extra safety
           },
         },
         0
@@ -148,7 +151,7 @@ function SimpleHouse({ selectedCategory, onCategoryChange }) {
         const rightWalls = findMeshesByPrefix(scene, "rightWall");
         rightWalls.forEach((wall) => (wall.visible = false));
 
-        animateCamera([5, 3, 5], [2, 1, 0], Math.PI / 4);
+        animateCamera([10, 2, -3], [2, 0, -3], 0);
         break;
 
       case "living room":
@@ -156,7 +159,7 @@ function SimpleHouse({ selectedCategory, onCategoryChange }) {
         const leftWallLiving = findMeshesByPrefix(scene, "leftWall");
         leftWallLiving.forEach((wall) => (wall.visible = false));
 
-        animateCamera([-5, 3, 5], [-2, 1, 0], -Math.PI / 4);
+        animateCamera([-8, 6, 2], [-2, 1, 2], 0);
         break;
 
       case "bedroom":
@@ -164,7 +167,7 @@ function SimpleHouse({ selectedCategory, onCategoryChange }) {
         const leftWallBedroom = findMeshesByPrefix(scene, "leftWall");
         leftWallBedroom.forEach((wall) => (wall.visible = false));
 
-        animateCamera([-4, 4, 4], [-1, 2, 1], -Math.PI / 6);
+        animateCamera([-5, 4.5, -3], [-2, 4.5, -3], 0);
         break;
 
       case "bathroom":
@@ -172,32 +175,32 @@ function SimpleHouse({ selectedCategory, onCategoryChange }) {
         const leftWallBathroom = findMeshesByPrefix(scene, "leftWall");
         leftWallBathroom.forEach((wall) => (wall.visible = false));
 
-        animateCamera([-3, 2, 3], [-1, 1, -1], -Math.PI / 3);
+        animateCamera([-5, 2, -3], [-2, 1, -3], 0);
         break;
 
       case "garage":
         // No walls to hide, just position camera for garage view
-        animateCamera([6, 2, -4], [3, 0, -2], Math.PI);
+        animateCamera([4, 2, 6], [4, 2, 4], 0);
         break;
 
       case "roof":
         // Position camera from above for roof view
-        animateCamera([0, 15, 0], [0, 0, 0], 0, 2); // Longer duration for dramatic effect
+        animateCamera([10, 15, 0], [0, 6, 0], 0); // Longer duration for dramatic effect
         break;
 
       case "balcony":
         // Position camera for balcony view
-        animateCamera([4, 4, 8], [1, 2, 4], Math.PI / 8);
+        animateCamera([4, 5, 5], [4, 4, 3], 0);
         break;
 
       case "door":
         // Position camera for door view
-        animateCamera([0, 2, 8], [0, 1, 0], 0);
+        animateCamera([1, 1, 5], [1, 1, 4], 0);
         break;
 
       case "garden":
         // Position camera for garden view
-        animateCamera([8, 4, 8], [4, 0, 4], Math.PI / 6);
+        animateCamera([10, 5, 10], [0, 0, 0], 0);
         break;
 
       default:
@@ -255,121 +258,175 @@ function LoadingFallback() {
   );
 }
 
-// Sensor dropdown component
-function SensorDropdown({ selectedCategory, onSensorSelect }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [selectedSensor, setSelectedSensor] = useState("");
+// Real-time sensor data display component
+function SensorDataDisplay({ selectedCategory, sensorData }) {
+  const [lastUpdateTime, setLastUpdateTime] = useState(
+    new Date().toLocaleTimeString()
+  );
 
-  // Define sensors for each category
-  const sensorsByCategory = {
-    kitchen: [
-      { id: "temp_kitchen", name: "Temperature Sensor", type: "temperature" },
-      { id: "smoke_kitchen", name: "Smoke Detector", type: "smoke" },
-      { id: "gas_kitchen", name: "Gas Detector", type: "gas" },
-      { id: "light_kitchen", name: "Light Control", type: "light" },
-    ],
-    "living room": [
-      { id: "temp_living", name: "Temperature Sensor", type: "temperature" },
-      { id: "motion_living", name: "Motion Detector", type: "motion" },
-      { id: "light_living", name: "Light Control", type: "light" },
-      { id: "tv_living", name: "TV Control", type: "device" },
-    ],
-    bedroom: [
-      { id: "temp_bedroom", name: "Temperature Sensor", type: "temperature" },
-      { id: "light_bedroom", name: "Light Control", type: "light" },
-      { id: "curtain_bedroom", name: "Curtain Control", type: "device" },
-    ],
-    bathroom: [
-      { id: "humidity_bathroom", name: "Humidity Sensor", type: "humidity" },
-      { id: "temp_bathroom", name: "Temperature Sensor", type: "temperature" },
-      { id: "light_bathroom", name: "Light Control", type: "light" },
-      { id: "fan_bathroom", name: "Exhaust Fan", type: "device" },
-    ],
-    garage: [
-      { id: "door_garage", name: "Garage Door", type: "door" },
-      { id: "motion_garage", name: "Motion Detector", type: "motion" },
-      { id: "light_garage", name: "Light Control", type: "light" },
-    ],
-    roof: [
-      { id: "solar_roof", name: "Solar Panels", type: "energy" },
-      { id: "weather_roof", name: "Weather Station", type: "weather" },
-    ],
-    balcony: [
-      { id: "temp_balcony", name: "Temperature Sensor", type: "temperature" },
-      { id: "light_balcony", name: "Light Control", type: "light" },
-    ],
-    door: [
-      { id: "lock_door", name: "Smart Lock", type: "lock" },
-      { id: "camera_door", name: "Door Camera", type: "camera" },
-      { id: "bell_door", name: "Smart Doorbell", type: "bell" },
-    ],
-    garden: [
-      { id: "moisture_garden", name: "Soil Moisture", type: "moisture" },
-      { id: "sprinkler_garden", name: "Sprinkler System", type: "irrigation" },
-      { id: "light_garden", name: "Garden Lights", type: "light" },
-    ],
-  };
+  // Memoize the category data to avoid unnecessary re-renders
+  const categoryData = useMemo(() => {
+    return selectedCategory ? sensorData[selectedCategory] : null;
+  }, [sensorData, selectedCategory]);
+  const lastValidCategoryData = useRef(null);
 
-  const availableSensors = selectedCategory
-    ? sensorsByCategory[selectedCategory] || []
-    : [];
-
-  const handleSensorSelect = async (sensor) => {
-    setSelectedSensor(sensor.name);
-    setIsOpen(false);
-
-    // Here you'll make your axios requests to the backend
-    try {
-      // Example axios call - replace with your actual API endpoints
-      // const response = await axios.get(`/api/sensors/${sensor.id}`);
-      // onSensorSelect(sensor, response.data);
-
-      // Placeholder for now
-      console.log(`Selected sensor: ${sensor.name} (${sensor.id})`);
-      onSensorSelect(sensor, { status: "active", value: Math.random() * 100 });
-    } catch (error) {
-      console.error("Error fetching sensor data:", error);
+  useEffect(() => {
+    if (categoryData) {
+      lastValidCategoryData.current = categoryData;
     }
-  };
+  }, [categoryData]);
+
+  // Only update timestamp when the actual data changes (not on every render)
+  const previousDataRef = useRef();
+  useEffect(() => {
+    if (categoryData && selectedCategory) {
+      // Compare with previous data to see if it actually changed
+      const currentDataString = JSON.stringify(categoryData);
+      const previousDataString = JSON.stringify(previousDataRef.current);
+
+      if (currentDataString !== previousDataString) {
+        setLastUpdateTime(new Date().toLocaleTimeString());
+        previousDataRef.current = categoryData;
+      }
+    }
+  }, [categoryData, selectedCategory]);
+  const dataToRender = categoryData || lastValidCategoryData.current;
+
+  // Memoize the sensor items to prevent re-rendering when data hasn't changed
+  const sensorItems = useMemo(() => {
+    if (!dataToRender) return null;
+
+    return Object.entries(dataToRender).map(([key, value]) => (
+      <div key={key} className="sensor-item">
+        <div className="sensor-label">{getSensorLabel(key)}</div>
+        <div
+          className="sensor-value"
+          style={{ color: getStatusColor(key, value) }}
+        >
+          {formatSensorValue(key, value)}
+          {key.includes("temperature") && typeof value === "number" && "°C"}
+          {key.includes("moisture") && typeof value === "number" && "%"}
+          {key.includes("humidity") && typeof value === "number" && "%"}
+        </div>
+      </div>
+    ));
+  }, [dataToRender]);
 
   if (!selectedCategory) {
     return (
-      <div className="sensor-dropdown disabled">
-        <span>Select Category to view sensors</span>
+      <div className="sensor-data-display">
+        <div className="sensor-title">SMART HOME SENSORS</div>
+        <div className="no-selection">
+          <p>Select a room to view sensor data</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dataToRender) {
+    return (
+      <div className="sensor-data-display">
+        <div className="sensor-title">
+          {selectedCategory.toUpperCase()} SENSORS
+        </div>
+        <div className="no-data">
+          <p>Loading sensor data...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="sensor-dropdown">
-      <button className="dropdown-trigger" onClick={() => setIsOpen(!isOpen)}>
-        {selectedSensor || "Select Sensor"}
-        <span className={`dropdown-arrow ${isOpen ? "open" : ""}`}>▼</span>
-      </button>
-
-      {isOpen && (
-        <div className="dropdown-menu">
-          {availableSensors.map((sensor) => (
-            <button
-              key={sensor.id}
-              className="dropdown-item"
-              onClick={() => handleSensorSelect(sensor)}
-            >
-              <span className="sensor-name">{sensor.name}</span>
-              <span className="sensor-type">{sensor.type}</span>
-            </button>
-          ))}
-        </div>
-      )}
+    <div className="sensor-data-display">
+      <div className="sensor-title">
+        {selectedCategory.toUpperCase()} SENSORS
+      </div>
+      <div className="sensor-grid">{sensorItems}</div>
+      <div className="last-updated">Last updated: {lastUpdateTime}</div>
     </div>
   );
 }
+
+// Helper functions moved outside component to prevent recreation on each render
+const formatSensorValue = (key, value) => {
+  if (value === null || value === undefined) {
+    return "N/A";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "ON" : "OFF";
+  }
+
+  if (typeof value === "number") {
+    return value.toFixed(1);
+  }
+
+  return String(value);
+};
+
+const getStatusColor = (key, value) => {
+  if (value === null || value === undefined) return "#666";
+
+  // Alert conditions
+  if (key === "alert" && value) return "#ff4444";
+  if (key === "fire" && value) return "#ff4444";
+  if (key === "emergencyOn" && value) return "#ff4444";
+  if (key === "rainDetected" && value) return "#4488ff";
+
+  // Active states
+  if (typeof value === "boolean" && value) return "#44ff44";
+  if (typeof value === "boolean" && !value) return "#888";
+
+  // Numeric values
+  if (typeof value === "number") {
+    if (key.includes("temperature")) {
+      if (value > 30) return "#ff6644";
+      if (value < 15) return "#4488ff";
+      return "#44ff44";
+    }
+    if (key.includes("moisture") || key.includes("humidity")) {
+      if (value < 30) return "#ff6644";
+      if (value > 70) return "#4488ff";
+      return "#44ff44";
+    }
+  }
+
+  return "#44ff44";
+};
+
+const getSensorLabel = (key) => {
+  const labels = {
+    motion: "Motion Sensor",
+    curtainOpen: "Curtains",
+    temperature: "Temperature",
+    fanOn: "Fan",
+    tvOn: "TV",
+    emergencyOn: "Emergency",
+    lightOn: "Light",
+    fire: "Fire Sensor",
+    mq2: "Gas Sensor (MQ2)",
+    mq5: "Gas Sensor (MQ5)",
+    alert: "Alert Status",
+    rainDetected: "Rain Sensor",
+    doorOpen: "Door",
+    carInside: "Car Present",
+    soilMoisture: "Soil Moisture",
+    irrigationOn: "Irrigation",
+    acOn: "Air Conditioning",
+  };
+
+  return labels[key] || key.charAt(0).toUpperCase() + key.slice(1);
+};
 
 const Home3D = () => {
   const [controlsEnabled, setControlsEnabled] = useState(true);
   const [autoRotate, setAutoRotate] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("");
-  const [sensorData, setSensorData] = useState(null);
+  const [sensorData, setSensorData] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const controlsRef = useRef();
+  const intervalRef = useRef(null);
 
   const categories = [
     { id: "kitchen", name: "Kitchen", icon: "🍳" },
@@ -383,15 +440,116 @@ const Home3D = () => {
     { id: "garden", name: "Garden", icon: "🌱" },
   ];
 
+  // Function to fetch sensor data from API
+  const fetchSensorData = async () => {
+    try {
+      setError(null);
+
+      const data = await sensorAPI.getAllSensorData();
+
+      // Use functional update to compare with previous state
+      setSensorData((prevData) => {
+        // Deep comparison of the data
+        const dataString = JSON.stringify(data);
+        const prevDataString = JSON.stringify(prevData);
+
+        // Only update if data has actually changed
+        if (dataString !== prevDataString) {
+          return data;
+        }
+        return prevData;
+      });
+    } catch (error) {
+      console.error("Error fetching sensor data:", error);
+      setError("Failed to fetch sensor data");
+    }
+  };
+
+  // Function to fetch specific category data
+  const fetchCategoryData = async (category) => {
+    try {
+      const categoryMap = {
+        "living room": "living room",
+        kitchen: "kitchen",
+        roof: "roof",
+        garage: "garage",
+        garden: "garden",
+        bedroom: "bedroom",
+      };
+
+      if (categoryMap[category]) {
+        const data = await sensorAPI.getCategoryStatus(category);
+
+        setSensorData((prev) => {
+          // Only update if the category data has changed
+          const currentCategoryData = prev[category];
+          const newDataString = JSON.stringify(data);
+          const currentDataString = JSON.stringify(currentCategoryData);
+
+          if (newDataString !== currentDataString) {
+            return {
+              ...prev,
+              [category]: data,
+            };
+          }
+          return prev;
+        });
+      }
+    } catch (error) {
+      console.error(`Error fetching ${category} data:`, error);
+    }
+  };
+
+  // Setup polling for sensor data every 2 seconds
+  useEffect(() => {
+    // Initial fetch
+    fetchSensorData();
+
+    // Set up interval for polling
+    intervalRef.current = setInterval(fetchSensorData, 2000);
+
+    // Cleanup interval on unmount
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
+
+  // Additional polling for selected category (more frequent updates)
+  useEffect(() => {
+    if (selectedCategory) {
+      const categoryInterval = setInterval(() => {
+        fetchCategoryData(selectedCategory);
+      }, 1000); // Update selected category every second
+
+      return () => clearInterval(categoryInterval);
+    }
+  }, [selectedCategory]);
+
   const handleCategorySelect = (categoryId) => {
     setSelectedCategory(categoryId);
     setControlsEnabled(true);
-    setSensorData(null); // Reset sensor data when category changes
+
+    // Immediately fetch data for selected category
+    fetchCategoryData(categoryId);
   };
 
-  const handleSensorSelect = (sensor, data) => {
-    setSensorData({ sensor, data });
-  };
+  // Memoize the alert checking function to prevent unnecessary recalculations
+  const hasAlert = useMemo(() => {
+    return (categoryId) => {
+      const data = sensorData[categoryId];
+      if (!data) return false;
+
+      return (
+        data.alert === true ||
+        data.fire === true ||
+        data.emergencyOn === true ||
+        (data.mq2 !== null && data.mq2 > 300) ||
+        (data.mq5 !== null && data.mq5 > 300)
+      );
+    };
+  }, [sensorData]);
 
   return (
     <div className="home3d-container">
@@ -409,21 +567,21 @@ const Home3D = () => {
           >
             {autoRotate ? "Stop" : "Start"} Auto Rotate
           </button>
-        </div>
-        <div className="sensor-controls">
-          <SensorDropdown
-            selectedCategory={selectedCategory}
-            onSensorSelect={handleSensorSelect}
-          />
-          {sensorData && (
-            <div className="sensor-data">
-              <span className="sensor-reading">
-                {sensorData.sensor.name}:{" "}
-                {sensorData.data.value?.toFixed(1) || "N/A"}
-              </span>
+          {error && (
+            <div className="error-indicator">
+              <span>{error}</span>
             </div>
           )}
         </div>
+
+        {/* Real-time Sensor Data Display - Now positioned in top-left */}
+        <div className="sensor-display-panel">
+          <SensorDataDisplay
+            selectedCategory={selectedCategory}
+            sensorData={sensorData}
+          />
+        </div>
+
         {/* Category Buttons */}
         <div className="category-buttons">
           {categories.map((category) => (
@@ -431,14 +589,16 @@ const Home3D = () => {
               key={category.id}
               className={`category-btn ${
                 selectedCategory === category.id ? "active" : ""
-              }`}
+              } ${hasAlert(category.id) ? "alert" : ""}`}
               onClick={() => handleCategorySelect(category.id)}
             >
               <span className="category-icon">{category.icon}</span>
               <span className="category-name">{category.name}</span>
+              {hasAlert(category.id) && <span className="alert-badge">!</span>}
             </button>
           ))}
         </div>
+
         <Suspense fallback={<LoadingFallback />}>
           <Canvas
             camera={{ position: [25, 6, 23], fov: 60 }}
@@ -448,12 +608,14 @@ const Home3D = () => {
               pointerEvents: controlsEnabled ? "auto" : "none",
             }}
           >
+            <Effects></Effects>
             <OrbitControls
+              ref={controlsRef}
               enabled={controlsEnabled}
               enablePan={false}
               enableZoom={true}
               enableRotate={true}
-              autoRotate={autoRotate && !selectedCategory} // Disable auto-rotate when category is selected
+              autoRotate={autoRotate && !selectedCategory}
               autoRotateSpeed={1}
               maxPolarAngle={Math.PI / 2}
               minDistance={5}
@@ -467,7 +629,47 @@ const Home3D = () => {
             <SimpleHouse
               selectedCategory={selectedCategory}
               onCategoryChange={setSelectedCategory}
+              controlsRef={controlsRef}
             />
+
+            {sensorData["kitchen"] && (
+              <>
+                <RoomTextLabel
+                  position={[3, 1, -3]} // Kitchen position
+                  rotation={[0, Math.PI / 2, 0]}
+                  label="Gas"
+                  value={sensorData["kitchen"].mq2 > 300 ? "HIGH" : "Normal"}
+                  color={
+                    sensorData["kitchen"].mq2 > 300
+                      ? new THREE.Color(10, 0, 0)
+                      : new THREE.Color(0, 10, 0)
+                  }
+                />
+                <mesh position={[3, 2.6, -3]} scale={[0.1, 0.1, 0.1]}>
+                  <sphereGeometry args={[1, 16, 16]}></sphereGeometry>
+                  <meshBasicMaterial
+                    color={
+                      sensorData["kitchen"].alert == true
+                        ? new THREE.Color(10, 0, 0)
+                        : new THREE.Color(0, 10, 0)
+                    }
+                  ></meshBasicMaterial>
+                </mesh>
+
+                <RoomTextLabel
+                  position={[4.7, 1.5, -4.7]} // Kitchen position
+                  rotation={[0, 0, 0]}
+                  scale={[0.5, 0.5, 0.5]}
+                  label="Fire"
+                  value={sensorData["kitchen"] > 300 ? "Fire" : "No Fire"}
+                  color={
+                    sensorData["kitchen"].mq2 > 300
+                      ? new THREE.Color(10, 0, 0)
+                      : new THREE.Color(0, 10, 0)
+                  }
+                />
+              </>
+            )}
           </Canvas>
         </Suspense>
       </div>
